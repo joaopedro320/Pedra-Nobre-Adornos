@@ -157,6 +157,7 @@ h1,h2,h3{
 h2{font-size:clamp(28px,3.6vw,42px);}
 h3{font-size:20px;font-weight:600;}
 .script{color:var(--gold-text);font-weight:600;}
+.hero .script{color:var(--gold);}
 em{font-style:normal;color:var(--gold-text);}
 p.lead{font-size:17px;color:var(--ink-soft);max-width:640px;}
 .section{padding:96px 0;}
@@ -317,7 +318,6 @@ header.scrolled{box-shadow:0 6px 24px rgba(61,61,61,.08);background:rgba(250,248
 .mosaic figcaption{position:absolute;bottom:12px;left:14px;font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--off);opacity:0;transform:translateY(6px);transition:.3s;z-index:2;}
 .mosaic figure:hover figcaption{opacity:1;transform:translateY(0);}
 .mosaic figure.hide{display:none;}
-.mosaic figure.s2{grid-column:span 2;grid-row:span 2;}
 
 /* Lightbox */
 .lightbox{position:fixed;inset:0;background:rgba(20,20,20,.97);z-index:1000;display:none;align-items:center;justify-content:center;flex-direction:column;}
@@ -1362,7 +1362,6 @@ galeriaItems.forEach((item, idx)=>{
   fig.tabIndex = 0;
   fig.setAttribute('role', 'button');
   fig.setAttribute('aria-label', 'Ampliar: ' + item.alt);
-  if(idx===0 || idx===10){ fig.classList.add('s2'); }
   fig.style.transitionDelay = (idx%4)*70+'ms';
   fig.innerHTML = `<img src="${item.src}" alt="${item.alt}" loading="lazy"><figcaption>${item.label}</figcaption>`;
   mosaic.appendChild(fig);
@@ -1373,6 +1372,24 @@ const mosaicIo = new IntersectionObserver((entries)=>{
 document.querySelectorAll('#mosaic figure').forEach(fig=>mosaicIo.observe(fig));
 
 /* ---------- Filters ---------- */
+/* ---------- Mosaic: avoid a lone widow tile at the end of the last row ---------- */
+function mosaicColumns(){
+  const w = window.innerWidth;
+  if(w<=720) return 2;
+  if(w<=1024) return 3;
+  return 4;
+}
+function fixMosaicWidow(){
+  const cols = mosaicColumns();
+  const visible = Array.from(document.querySelectorAll('#mosaic figure')).filter(f=>!f.classList.contains('hide'));
+  visible.forEach(f=>{ f.style.gridColumn = ''; });
+  const remainder = visible.length % cols;
+  if(remainder===1 && visible.length>cols){
+    const span = Math.min(2, cols);
+    const start = Math.floor((cols-span)/2) + 1;
+    visible[visible.length-1].style.gridColumn = start + ' / span ' + span;
+  }
+}
 document.getElementById('filters').addEventListener('click', (e)=>{
   const btn = e.target.closest('.filter-btn');
   if(!btn) return;
@@ -1381,17 +1398,16 @@ document.getElementById('filters').addEventListener('click', (e)=>{
   const filter = btn.dataset.filter;
   const figures = Array.from(document.querySelectorAll('#mosaic figure'));
   figures.forEach(fig=>{
-    fig.classList.remove('s2');
     fig.classList.toggle('hide', filter!=='all' && fig.dataset.cat!==filter);
   });
-  const visible = figures.filter(fig=>!fig.classList.contains('hide'));
-  if(filter==='all'){
-    [0,10].forEach(i=>figures[i]?.classList.add('s2'));
-  }else if(visible.length){
-    visible[0].classList.add('s2');
-    if(visible.length>5){ visible[4].classList.add('s2'); }
-  }
+  fixMosaicWidow();
   if(window.dataLayer){ window.dataLayer.push({event:'galeria_filtro', filtro: filter}); }
+});
+fixMosaicWidow();
+let mosaicResizeT;
+window.addEventListener('resize', ()=>{
+  clearTimeout(mosaicResizeT);
+  mosaicResizeT = setTimeout(fixMosaicWidow, 150);
 });
 
 /* ---------- Lightbox ---------- */
